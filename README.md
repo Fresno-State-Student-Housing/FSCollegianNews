@@ -65,5 +65,3 @@ Contributions to improve the dashboard are welcome. Please follow these steps:
 ## License
 [MIT License](https://opensource.org/licenses/MIT)
 
-## Contact
-For any queries or suggestions, please contact the Fresno State Collegian IT Department.
