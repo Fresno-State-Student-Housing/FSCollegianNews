@@ -1,0 +1,9 @@
+{
+  "dependencies": {
+    "express": "^4.21.1",
+    "live-server": "^1.2.2",
+    "node": "^20.18.0",
+    "rss-to-json": "^2.1.1",
+    "xml2js": "^0.6.2"
+  }
+}
