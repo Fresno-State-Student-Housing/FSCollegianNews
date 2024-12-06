@@ -1,4 +1,4 @@
-const API_URL = 'https://fshousingproxy.replit.app/fscollegian';
+const API_URL = 'https://fresno-state-student-housing.github.io/fshousingproxy/';
 
 const newsData = {
     mainNews: [],
