@@ -1,4 +1,4 @@
-const API_URL = 'https://fresno-state-student-housing.github.io/fshousingproxy/';
+const API_URL = 'https://fresno-state-student-housing.github.io/fshousingproxy/feed.xml';
 
 const newsData = {
     mainNews: [],
@@ -33,7 +33,7 @@ let currentMainNewsIndex = 0;
 
 async function fetchNews() {
     try {
-        console.log('Fetching news...');
+        console.log('Fetching news from API_URL:', API_URL);
         const response = await fetch(API_URL, {
             method: 'GET',
             headers: {
@@ -45,20 +45,23 @@ async function fetchNews() {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         const text = await response.text();
+        console.log('Fetched text:', text.substring(0, 200)); // Log first 200 characters
+        
         const parser = new DOMParser();
         const xmlDoc = parser.parseFromString(text, "text/xml");
         console.log('Received data:', xmlDoc);
         
         const items = xmlDoc.getElementsByTagName('item');
         const articles = Array.from(items).map(item => ({
-            title: item.getElementsByTagName('title')[0].textContent,
-            description: item.getElementsByTagName('description')[0].textContent,
-            pubDate: item.getElementsByTagName('pubDate')[0].textContent,
-            category: Array.from(item.getElementsByTagName('category')).map(cat => cat.textContent),
-            link: item.getElementsByTagName('link')[0].textContent,
-            content: item.getElementsByTagName('content:encoded')[0].textContent,
-            creator: item.getElementsByTagName('dc:creator')[0].textContent
+            title: item.getElementsByTagName('title')[0]?.textContent || 'Untitled',
+            description: item.getElementsByTagName('description')[0]?.textContent || '',
+            pubDate: item.getElementsByTagName('pubDate')[0]?.textContent || '',
+            category: Array.from(item.getElementsByTagName('category')).map(cat => cat.textContent) || [],
+            link: item.getElementsByTagName('link')[0]?.textContent || '#',
+            content: item.getElementsByTagName('content:encoded')[0]?.textContent || '',
+            creator: item.getElementsByTagName('dc:creator')[0]?.textContent || 'Unknown'
         }));
+        
 
         if (!articles || !Array.isArray(articles)) {
             throw new Error('Invalid data format received');
@@ -254,9 +257,9 @@ function setupAutoScroll() {
 }
 
 function autoScroll(element, indicator, initialScrollPercentage) {
-    if (!element) return;
+    if (!element || !indicator) return;
     
-    const scrollDuration = 60000; // Total time for one complete scroll cycle (20 seconds)
+    const scrollDuration = 60000; // Total time for one complete scroll cycle (60 seconds)
     const pauseDuration = 2000; // 2 seconds pause at top and bottom
     const fps = 60; // Frames per second
     const totalFrames = (scrollDuration + pauseDuration * 2) / 1000 * fps;
@@ -287,7 +290,7 @@ function autoScroll(element, indicator, initialScrollPercentage) {
         
         // Update scroll indicator
         if (indicator) {
-            const indicatorScale = (element.scrollTop / scrollHeight);
+            const indicatorScale = scrollHeight ? (element.scrollTop / scrollHeight) : 0;
             indicator.style.transform = `scaleY(${indicatorScale})`;
         }
         
@@ -318,5 +321,7 @@ function setupMainNewsRotation() {
     }, 5000); // 5 seconds interval
 }
 
-fetchNews();
+document.addEventListener('DOMContentLoaded', () => {
+    fetchNews();
+});
 setInterval(fetchNews, 15 * 60 * 1000); // Refresh every 15 minutes
