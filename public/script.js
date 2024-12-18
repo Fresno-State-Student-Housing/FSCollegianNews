@@ -1,4 +1,4 @@
-const API_URL = 'https://fresno-state-student-housing.github.io/fshousingproxy/feed.xml';
+const API_URL = 'https://fshousingproxy.vercel.app/api/get-feed';
 
 const newsData = {
     mainNews: [],
@@ -37,43 +37,50 @@ async function fetchNews() {
         const response = await fetch(API_URL, {
             method: 'GET',
             headers: {
-                'Accept': 'application/rss+xml'
+                'Content-Type': 'application/json'
             },
         });
         console.log('Response status:', response.status);
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
-        const text = await response.text();
-        console.log('Fetched text:', text.substring(0, 200)); // Log first 200 characters
-        
-        const parser = new DOMParser();
-        const xmlDoc = parser.parseFromString(text, "text/xml");
-        console.log('Received data:', xmlDoc);
-        
-        const items = xmlDoc.getElementsByTagName('item');
+        const jsonData = await response.json();
+        console.log('Fetched JSON:', jsonData);
+
+        // Extract the RSS feed content from the JSON response
+        const rssContent = jsonData.data.content.rss;
+        if (!rssContent) {
+            throw new Error('Invalid feed data structure.');
+        }
+
+        const channel = rssContent.channel[0]; // Assuming channel is an array with at least one element
+        const items = channel.item;
         const articles = Array.from(items).map(item => ({
-            title: item.getElementsByTagName('title')[0]?.textContent || 'Untitled',
-            description: item.getElementsByTagName('description')[0]?.textContent || '',
-            pubDate: item.getElementsByTagName('pubDate')[0]?.textContent || '',
-            category: Array.from(item.getElementsByTagName('category')).map(cat => cat.textContent) || [],
-            link: item.getElementsByTagName('link')[0]?.textContent || '#',
-            content: item.getElementsByTagName('content:encoded')[0]?.textContent || '',
-            creator: item.getElementsByTagName('dc:creator')[0]?.textContent || 'Unknown'
+            title: item.title || 'Untitled',
+            description: item.description || '',
+            pubDate: item.pubDate || '',
+            category: item.category || [],
+            link: item.link || '#',
+            content: item['content:encoded'] || '',
+            creator: item['dc:creator'] || 'Unknown'
         }));
-        
 
         if (!articles || !Array.isArray(articles)) {
             throw new Error('Invalid data format received');
         }
 
-        newsData.mainNews = articles.filter(article => !categoryIncludes(article.category, 'Sports') && !categoryIncludes(article.category, 'Editors\' picks') && !categoryIncludes(article.category, 'Lifestyle'));
+        newsData.mainNews = articles.filter(article => 
+            !categoryIncludes(article.category, 'Sports') && 
+            !categoryIncludes(article.category, 'Editors\' picks') && 
+            !categoryIncludes(article.category, 'Lifestyle')
+        );
         newsData.sports = articles.filter(article => categoryIncludes(article.category, 'Sports'));
         newsData.pawPrint = articles.filter(article => categoryIncludes(article.category, 'Editors\' picks'));
         newsData.opinion = articles.filter(article => categoryIncludes(article.category, 'Lifestyle'));
         newsData.trendingStories = articles.map(article => article.title);
         
         updateUI();
+        showUpdateNotification();
         setupAutoScroll();
         setupMainNewsRotation();
     } catch (error) {
@@ -180,7 +187,7 @@ function createArticleCard(article, isFullSize = false) {
     return `
         <div class="article-card ${isFullSize ? 'full-size' : ''}">
             <img src="${imageUrl}" alt="${getContent(article.title)}" onerror="this.src='${DEFAULT_IMAGE_URL}'">
-            <h3>${getContent(article.title)}</h3>
+            <h3><a href="${article.link}" target="_blank" rel="noopener noreferrer">${getContent(article.title)}</a></h3>
             ${description ? `
                 <div class="article-description">
                     ${isFullSize ? description : truncateText(description, 100)}
@@ -323,5 +330,24 @@ function setupMainNewsRotation() {
 
 document.addEventListener('DOMContentLoaded', () => {
     fetchNews();
+
+    // Listen for storage events to trigger immediate updates
+    window.addEventListener('storage', (event) => {
+        if (event.key === 'FSH_Dash_UpdateFeed') {
+            console.log('Received update notification from Dashboard. Fetching latest feed...');
+            fetchNews();
+        }
+    });
 });
+
+function showUpdateNotification() {
+    const notification = document.createElement('div');
+    notification.className = 'update-notification';
+    notification.innerText = 'Latest news updated!';
+    document.body.appendChild(notification);
+    setTimeout(() => {
+        notification.remove();
+    }, 3000); // Display for 3 seconds
+}
+
 setInterval(fetchNews, 15 * 60 * 1000); // Refresh every 15 minutes
